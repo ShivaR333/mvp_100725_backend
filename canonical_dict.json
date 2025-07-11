@@ -1,0 +1,134 @@
+{
+  "customer_id": {
+    "description": "Unique identifier for customers",
+    "unit": "dimensionless",
+    "data_type": "string",
+    "synonyms": ["cust_id", "customer_identifier", "user_id", "client_id"]
+  },
+  "order_id": {
+    "description": "Unique identifier for orders",
+    "unit": "dimensionless", 
+    "data_type": "string",
+    "synonyms": ["order_identifier", "transaction_id", "purchase_id"]
+  },
+  "product_id": {
+    "description": "Unique identifier for products",
+    "unit": "dimensionless",
+    "data_type": "string", 
+    "synonyms": ["item_id", "product_identifier", "sku", "product_code"]
+  },
+  "order_date": {
+    "description": "Date when order was placed",
+    "unit": "date",
+    "data_type": "timestamp",
+    "synonyms": ["purchase_date", "transaction_date", "order_timestamp"]
+  },
+  "revenue": {
+    "description": "Revenue amount in currency",
+    "unit": "currency",
+    "data_type": "float",
+    "synonyms": ["sales", "amount", "total_amount", "price", "cost", "value"]
+  },
+  "quantity": {
+    "description": "Number of items",
+    "unit": "count",
+    "data_type": "integer",
+    "synonyms": ["qty", "count", "num_items", "amount", "volume"]
+  },
+  "temperature": {
+    "description": "Temperature measurement",
+    "unit": "celsius",
+    "data_type": "float",
+    "synonyms": ["temp", "temperature_c", "temperature_f", "degrees"]
+  },
+  "weight": {
+    "description": "Weight measurement",
+    "unit": "kilograms",
+    "data_type": "float",
+    "synonyms": ["mass", "weight_kg", "weight_lb", "wt"]
+  },
+  "height": {
+    "description": "Height measurement",
+    "unit": "meters",
+    "data_type": "float",
+    "synonyms": ["length", "height_m", "height_cm", "height_ft"]
+  },
+  "duration": {
+    "description": "Time duration",
+    "unit": "seconds",
+    "data_type": "float",
+    "synonyms": ["time", "elapsed_time", "duration_s", "duration_min"]
+  },
+  "conversion_rate": {
+    "description": "Conversion rate as percentage",
+    "unit": "percentage",
+    "data_type": "float",
+    "synonyms": ["rate", "pct", "percent", "ratio", "conversion_pct"]
+  },
+  "customer_age": {
+    "description": "Age of customer in years",
+    "unit": "count",
+    "data_type": "integer",
+    "synonyms": ["age", "years", "customer_years", "age_years"]
+  },
+  "email": {
+    "description": "Email address",
+    "unit": "dimensionless",
+    "data_type": "string",
+    "synonyms": ["email_address", "contact_email", "user_email"]
+  },
+  "phone": {
+    "description": "Phone number",
+    "unit": "dimensionless",
+    "data_type": "string",
+    "synonyms": ["phone_number", "contact_phone", "mobile", "telephone"]
+  },
+  "address": {
+    "description": "Street address",
+    "unit": "dimensionless",
+    "data_type": "string",
+    "synonyms": ["street_address", "location", "address_line", "home_address"]
+  },
+  "city": {
+    "description": "City name",
+    "unit": "dimensionless",
+    "data_type": "string",
+    "synonyms": ["city_name", "town", "municipality"]
+  },
+  "state": {
+    "description": "State or province",
+    "unit": "dimensionless",
+    "data_type": "string",
+    "synonyms": ["state_code", "province", "region", "territory"]
+  },
+  "country": {
+    "description": "Country name",
+    "unit": "dimensionless",
+    "data_type": "string",
+    "synonyms": ["country_code", "nation", "country_name"]
+  },
+  "postal_code": {
+    "description": "Postal or ZIP code",
+    "unit": "dimensionless",
+    "data_type": "string",
+    "synonyms": ["zip_code", "postcode", "zip", "postal"]
+  },
+  "category": {
+    "description": "Product or item category",
+    "unit": "dimensionless",
+    "data_type": "string",
+    "synonyms": ["product_category", "type", "classification", "group"]
+  },
+  "brand": {
+    "description": "Brand name",
+    "unit": "dimensionless",
+    "data_type": "string",
+    "synonyms": ["brand_name", "manufacturer", "make", "company"]
+  },
+  "status": {
+    "description": "Status or state",
+    "unit": "dimensionless",
+    "data_type": "string",
+    "synonyms": ["state", "condition", "order_status", "current_status"]
+  }
+}

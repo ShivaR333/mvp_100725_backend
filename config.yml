@@ -1,0 +1,19 @@
+sources:
+  - name: "sales_db"
+    type: "postgres"
+    host: "localhost"
+    port: 5432
+    database: "optiflux"
+    user: "optiflux"
+    password: "optiflux_password"
+  
+  - name: "analytics_files"
+    type: "csv"
+    files:
+      - "data/sales_data.csv"
+      - "data/customer_data.csv"
+      - "data/product_data.csv"
+  
+  - name: "local_cache"
+    type: "sqlite"
+    path: "data/cache.db"
