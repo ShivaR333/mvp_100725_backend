@@ -24,26 +24,9 @@ exports.handler = async (event) => {
             };
         }
         
-        // Extract user ID from the JWT authorizer context or fallback to header
-        let userId = event.requestContext?.authorizer?.jwt?.claims?.sub;
-
-        if (!userId) {
-            const authHeader = event.headers?.Authorization || event.headers?.authorization;
-            if (authHeader && authHeader.startsWith('Bearer ')) {
-                const token = authHeader.replace('Bearer ', '');
-                try {
-                    const parts = token.split('.');
-                    if (parts.length === 3) {
-                        const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
-                        userId = payload.sub || 'guest';
-                    }
-                } catch (e) {
-                    console.warn('Failed to decode JWT token for userId fallback:', e);
-                }
-            }
-            // As a final fallback, use anonymous user
-            if (!userId) userId = 'guest';
-        }
+        // Extract user ID from the JWT authorizer context
+        // Extract user ID from the JWT authorizer context
+        const userId = event.requestContext?.authorizer?.jwt?.claims?.sub;
         
         if (!userId) {
             return {
@@ -155,26 +138,19 @@ exports.handler = async (event) => {
         session.history.push(userTurn);
         
         // Build prompt from history
+        const conversationHistory = session.history
+            .map(turn => `${turn.speaker}: ${turn.text}`)
+            .join('\n');
+        
+        const systemPrompt = `You are an AI assistant helping users with causal analysis and data insights. 
+Based on the conversation history, ask the next most relevant question to help the user with their analysis.
+Keep questions focused, specific, and actionable. Avoid repeating questions already asked.
 
-        const systemPrompt = `You are an AI assistant helping users with causal analysis and data insights.
-Your goal is to ask the next most relevant question that will move the analysis forward.
-Be concise, specific, and avoid repeating questions already asked.`;
+Conversation so far:
+${conversationHistory}
 
-        // Convert session history to ChatGPT messages format
-        const chatMessages = [
-            {
-                role: 'system',
-                content: systemPrompt
-            }
-        ];
-
-        for (const turn of session.history) {
-            chatMessages.push({
-                role: turn.speaker === 'assistant' ? 'assistant' : 'user',
-                content: turn.text
-            });
-        }
- 
+Provide only your next question, nothing else.`;
+        
         // Call LLM for next question
         let assistantMessage;
         try {
@@ -186,7 +162,12 @@ Be concise, specific, and avoid repeating questions already asked.`;
                 },
                 body: JSON.stringify({
                     model: 'gpt-3.5-turbo',
-                    messages: chatMessages,
+                    messages: [
+                        {
+                            role: 'system',
+                            content: systemPrompt
+                        }
+                    ],
                     max_tokens: 150,
                     temperature: 0.7
                 })
@@ -262,7 +243,7 @@ Be concise, specific, and avoid repeating questions already asked.`;
         console.error('Error in orchestrator handler:', error);
         
         return {
-            statusCode: 500,
+            statusCode: 600,
             headers: {
                 'Access-Control-Allow-Origin': '*',
                 'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
