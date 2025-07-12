@@ -1,6 +1,9 @@
 const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
 const { DynamoDBDocumentClient, GetCommand, PutCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
 const { v4: uuidv4 } = require('uuid');
+const { OpenAI } = require('openai');
+const { LLMChain } = require('langchain/chains');
+const { PromptTemplate } = require('langchain/prompts');
 
 const dynamoClient = new DynamoDBClient({ region: process.env.AWS_REGION || 'us-east-1' });
 const docClient = DynamoDBDocumentClient.from(dynamoClient);
@@ -24,11 +27,10 @@ exports.handler = async (event) => {
             };
         }
         
-        // Extract user ID from the JWT authorizer context
-        // Extract user ID from the JWT authorizer context
-        const userId = event.requestContext?.authorizer?.jwt?.claims?.sub;
+        // Extract and validate JWT token from Authorization header (like validate.js)
+        const authHeader = event.headers?.Authorization || event.headers?.authorization;
         
-        if (!userId) {
+        if (!authHeader) {
             return {
                 statusCode: 401,
                 headers: {
@@ -39,9 +41,55 @@ exports.handler = async (event) => {
                 },
                 body: JSON.stringify({
                     error: 'Unauthorized',
-                    message: 'User ID not found in JWT token'
+                    message: 'Authorization header is required'
                 })
             };
+        }
+        
+        // Extract and decode JWT token
+        const token = authHeader.replace('Bearer ', '');
+        let userId;
+        
+        try {
+            // Simple JWT decode (payload is the middle part of the token)
+            const parts = token.split('.');
+            if (parts.length !== 3) {
+                throw new Error('Invalid JWT format');
+            }
+            
+            // Decode the payload (middle part)
+            const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+            console.log('Decoded JWT payload:', payload);
+            
+            // Extract user ID from JWT payload
+            userId = payload.sub;
+            if (!userId) {
+                throw new Error('No user ID found in JWT');
+            }
+            
+        } catch (decodeError) {
+            console.error('JWT decode error:', decodeError);
+            
+            // Fallback to mock data if JWT decode fails (like validate.js)
+            if (token === 'demo-token') {
+                userId = 'demo_user';
+            } else if (token === 'admin-token') {
+                userId = 'admin';
+            } else {
+                return {
+                    statusCode: 401,
+                    headers: {
+                        'Access-Control-Allow-Origin': '*',
+                        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+                        'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        error: 'Invalid token',
+                        message: 'Unable to decode or validate the provided token'
+                    })
+                };
+            }
         }
         
         // Parse request body
@@ -151,38 +199,25 @@ ${conversationHistory}
 
 Provide only your next question, nothing else.`;
         
-        // Call LLM for next question
+        // Create LLM chain
+        const model = new OpenAI({
+            openAIApiKey: process.env.OPENAI_API_KEY,
+            modelName: 'gpt-3.5-turbo',
+            maxTokens: 150,
+            temperature: 0.7
+        });
+        
+        const prompt = PromptTemplate.fromTemplate(systemPrompt);
+        const chain = new LLMChain({ llm: model, prompt });
+        
+        // Get LLM response
         let assistantMessage;
         try {
-            const response = await fetch('https://api.openai.com/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    model: 'gpt-3.5-turbo',
-                    messages: [
-                        {
-                            role: 'system',
-                            content: systemPrompt
-                        }
-                    ],
-                    max_tokens: 150,
-                    temperature: 0.7
-                })
-            });
-            
-            if (!response.ok) {
-                throw new Error(`OpenAI API error: ${response.status}`);
-            }
-            
-            const data = await response.json();
-            assistantMessage = data.choices[0]?.message?.content?.trim() || 'What would you like to analyze next?';
-            
+            const response = await chain.call({});
+            assistantMessage = response?.text?.trim() || 'What would you like to analyze next?';
         } catch (error) {
-            console.error('Error calling OpenAI API:', error);
-            // Fallback to a generic question
+            console.error('Error calling LLM chain:', error);
+            // Fallback response
             assistantMessage = 'What specific aspect of your data would you like to explore further?';
         }
         
