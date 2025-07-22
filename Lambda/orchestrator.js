@@ -1,9 +1,6 @@
 const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
 const { DynamoDBDocumentClient, GetCommand, PutCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
 const { v4: uuidv4 } = require('uuid');
-const { OpenAI } = require('openai');
-const { LLMChain } = require('langchain/chains');
-const { PromptTemplate } = require('langchain/prompts');
 
 const dynamoClient = new DynamoDBClient({ region: process.env.AWS_REGION || 'us-east-1' });
 const docClient = DynamoDBDocumentClient.from(dynamoClient);
@@ -185,40 +182,98 @@ exports.handler = async (event) => {
         };
         session.history.push(userTurn);
         
-        // Build prompt from history
-        const conversationHistory = session.history
+        // Build conversation context
+        const conversationContext = session.history
             .map(turn => `${turn.speaker}: ${turn.text}`)
             .join('\n');
         
-        const systemPrompt = `You are an AI assistant helping users with causal analysis and data insights. 
-Based on the conversation history, ask the next most relevant question to help the user with their analysis.
-Keep questions focused, specific, and actionable. Avoid repeating questions already asked.
+        // Create comprehensive system prompt for causal analysis assistant
+        const systemPrompt = `You are an expert causal analysis consultant for OptiFlux. Communicate like a management consultant - precise, concise, and actionable.
 
-Conversation so far:
-${conversationHistory}
+COMMUNICATION STYLE:
+- Lead with the key insight or direct answer
+- Be conversational but professional
+- Use bullet points only when listing multiple items or recommendations
+- Keep responses focused and specific
+- Avoid lengthy explanations unless requested
 
-Provide only your next question, nothing else.`;
-        
-        // Create LLM chain
-        const model = new OpenAI({
-            openAIApiKey: process.env.OPENAI_API_KEY,
-            modelName: 'gpt-3.5-turbo',
-            maxTokens: 150,
-            temperature: 0.7
-        });
-        
-        const prompt = PromptTemplate.fromTemplate(systemPrompt);
-        const chain = new LLMChain({ llm: model, prompt });
-        
-        // Get LLM response
+EXPERTISE:
+- Causal inference (Pearl's hierarchy, potential outcomes)
+- Econometrics (IV, RDD, DID, matching, synthetic controls)  
+- Causal discovery (PC, FCI, GES, NOTEARS)
+- Business applications of causal analysis
+
+RESPONSE GUIDELINES:
+- Answer the question directly first
+- Use bullets only for lists of multiple items, methods, or steps
+- For single concepts or explanations, use natural sentences
+- End with specific next steps when appropriate
+
+Context: ${conversationContext}
+Question: ${userMessage}
+
+Provide a helpful, focused response. No thinking process or verbose explanations.`;
+
+        // Call Cerebras API (OpenAI-compatible endpoint)
         let assistantMessage;
         try {
-            const response = await chain.call({});
-            assistantMessage = response?.text?.trim() || 'What would you like to analyze next?';
+            console.log('Calling Cerebras API (Qwen-3-32B) for user message:', userMessage.substring(0, 100));
+            
+            const response = await fetch('https://api.cerebras.ai/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${process.env.CEREBRAS_API_KEY}`,
+                    'Content-Type': 'application/json',
+                    'User-Agent': 'OptiFlux/1.0' // Required to avoid CloudFront blocking
+                },
+                body: JSON.stringify({
+                    model: 'qwen-3-32b',
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content: userMessage }
+                    ],
+                    max_completion_tokens: 500,
+                    temperature: 0.7,
+                    top_p: 1,
+                    stream: false
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.text();
+                throw new Error(`Cerebras API error: ${response.status} - ${errorData}`);
+            }
+
+            const data = await response.json();
+            console.log('Cerebras API response received, choices count:', data.choices?.length);
+            
+            // Extract response and filter out thinking tokens (content between <thinking> tags)
+            let rawResponse = data.choices[0]?.message?.content?.trim() || 'I apologize, but I wasn\'t able to generate a response. Could you please rephrase your question?';
+            
+            // Remove thinking tokens if present (both <thinking> and <think> variants)
+            assistantMessage = rawResponse.replace(/<think>[\s\S]*?<\/think>/gi, '').replace(/<thinking>[\s\S]*?<\/thinking>/gi, '').trim();
+            
+            // Fallback if response becomes empty after filtering
+            if (!assistantMessage) {
+                assistantMessage = 'I apologize, but I wasn\'t able to generate a response. Could you please rephrase your question?';
+            }
+            
         } catch (error) {
-            console.error('Error calling LLM chain:', error);
-            // Fallback response
-            assistantMessage = 'What specific aspect of your data would you like to explore further?';
+            console.error('Error calling Cerebras API:', {
+                error: error.message,
+                stack: error.stack,
+                apiKey: process.env.CEREBRAS_API_KEY ? 'SET' : 'NOT_SET',
+                userMessage: userMessage.substring(0, 100)
+            });
+            
+            // More informative fallback that includes the actual error
+            if (userMessage.toLowerCase().includes('causal')) {
+                assistantMessage = 'I\'d be happy to help with causal analysis! Could you tell me more about your specific research question or dataset? For example, are you trying to estimate a treatment effect, identify causal relationships, or validate existing assumptions?';
+            } else if (userMessage.toLowerCase().includes('data')) {
+                assistantMessage = 'I can help you analyze your data for causal relationships. What type of data do you have (observational, experimental, time series) and what outcome are you trying to understand?';
+            } else {
+                assistantMessage = `I'm experiencing a technical issue with the AI service, but I'm here to help with causal analysis! Feel free to ask me about causal inference methods, econometric techniques, or your specific analytical challenge. (Debug: ${error.message})`;
+            }
         }
         
         // Append assistant turn to history

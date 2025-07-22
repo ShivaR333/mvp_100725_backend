@@ -1,0 +1,12 @@
+{
+  "name": "get-dataset-status",
+  "version": "1.0.0",
+  "description": "Lambda function to get dataset processing status",
+  "main": "index.js",
+  "dependencies": {
+    "aws-sdk": "^2.1000.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

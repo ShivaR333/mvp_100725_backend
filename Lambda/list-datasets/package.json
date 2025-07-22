@@ -1,0 +1,12 @@
+{
+  "name": "list-datasets",
+  "version": "1.0.0",
+  "description": "Lambda function to list all datasets for a user",
+  "main": "index.js",
+  "dependencies": {
+    "aws-sdk": "^2.1691.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
